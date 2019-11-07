@@ -79,8 +79,9 @@ const MessageLabels = {
  * Un mensaje
  */
 class Message {
-    constructor(msgid, from, to, labels, title, body) {
+    constructor(msgid, date, from, to, labels, title, body) {
         this.msgid = msgid;
+        this.date = date || new Date(),
         this.from = from;
         this.to = to;               // if array, contains UIDs. Otherwise, either a MSGID (=reply) or CID (=class)
         this.labels = labels || []; // of MessageLabels
@@ -159,6 +160,16 @@ class Util {
     }
 
     /**
+     * Genera una fecha al azar entre 2 dadas
+     * https://stackoverflow.com/a/19691491
+     */
+    static randomDate(fechaIni, maxDias) {
+        let dia = new Date(fechaIni);
+        dia.setDate(dia.getDate() + Util.randomInRange(1, maxDias));
+        return dia;
+    }
+
+    /**
      * Devuelve n elementos no-duplicados de un array
      * de https://stackoverflow.com/a/11935263/15472
      */
@@ -217,6 +228,7 @@ class Util {
     static randomMessage(users) {
         return new Message(
             Util.randomString(),
+            Util.randomDate(new Date(), 10),
             Util.randomChoice(users),
             Util.fill(Util.randomInRange(1,5), () => Util.randomChoice(users)),
             Util.randomSample(Object.values(MessageLabels), Util.randomInRange(1,5)),

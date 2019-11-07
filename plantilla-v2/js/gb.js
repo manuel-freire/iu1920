@@ -1,18 +1,33 @@
 import * as Gb from './gbapi.js'
 
-function createGroupItem(group) {
+function createGroupItem(mensaje) {
+  const rid = 'x_' + Math.floor(Math.random()*1000000);
+  const hid = 'h_'+rid;
+  const cid = 'c_'+rid;
+  
   const html = [
-    '<li id="grp_',
-    group.name,
-    '" ',
-    'class="list-group-item d-flex justify-content-between align-items-center">',
-    group.name,
-    '<span class="badge badge-primary badge-pill" title="',
-    group.elements.join(' '),
-    '">',
-    group.elements.length,
-    '</span>',
-    '</li>'
+    '<div class="card">',
+    '<div class="card-header" id="', hid, '">',
+    '  <h2 class="mb-0">',
+    '    <button class="btn btn-link" type="button"',
+        ' data-toggle="collapse" data-target="#', cid, '"',
+    '      aria-expanded="true" aria-controls="', rid, '">',
+    '<b class="msg mtitle">', mensaje.title, '</b>',
+    '<div class="msg mdate"> Enviado el ', 
+    new Intl.DateTimeFormat('es-ES').format(mensaje.date),
+    ' por ', mensaje.from,
+    '</div>',
+    '    </button>',
+    '  </h2>',
+    '</div>',
+    '',
+    '<div id="', cid, '" class="collapse show" aria-labelledby="', hid,'" ',
+       'data-parent="#accordionExample">',
+    '  <div class="card-body msg">',
+    mensaje.body,
+    '  </div>',
+    '</div>',
+    '</div>'
   ];
   return $(html.join(''));
 }
@@ -47,12 +62,12 @@ function createVmItem(params) {
 $(function() { 
   
   // funcion de actualización de ejemplo. Llámala para refrescar interfaz
-  function update(result) {
+  window.demo = function update(result) {
     try {
       // vaciamos un contenedor
-      $("#grupos").empty();
+      $("#accordionExample").empty();
       // y lo volvemos a rellenar con su nuevo contenido
-      Gb.globalState.classes.forEach(group =>  $("#grupos").append(createGroupItem(group)));      
+      Gb.globalState.messages.forEach(m =>  $("#accordionExample").append(createGroupItem(m)));      
       // y asi para cada cosa que pueda haber cambiado
     } catch (e) {
       console.log('Error actualizando', e);
@@ -85,7 +100,7 @@ $(function() {
       });      
     });
 
-    Gb.addClass(new Gb.EClass(cid, [teacher], students));
+    Gb.addClass(new Gb.EClass(cid, students.map(s => s.sid), [teacher.uid]));
   });
   Gb.addUser(U.randomUser(Gb.UserRoles.ADMIN));
   console.log(userIds);
