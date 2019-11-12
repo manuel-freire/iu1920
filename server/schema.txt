@@ -1,0 +1,41 @@
+eclass (id bigint GEN, 
+    eid varchar(255), 
+    instance_id bigint)
+ eclass_students (eclass_id bigint not null, students_id bigint not null)
+ eclass_teachers (eclass_id bigint not null, teachers_id bigint not null)
+ 
+instance (id bigint GEN)
+
+message (id bigint GEN, 
+    body varchar(255), 
+    subject varchar(255), 
+    from_id bigint, 
+    instance_id bigint, 
+    parent_id bigint)
+ message_to (message_id bigint not null, to_id bigint not null)
+ 
+student (id bigint GEN, 
+    eid bigint, 
+    first_name varchar(255), 
+    last_name varchar(255), 
+    eclass_id bigint, 
+    instance_id bigint)
+ student_guardians (student_id bigint not null, guardians_id bigint not null)
+
+umessage (id bigint GEN, 
+    labels varchar(255), 
+    message_id bigint, 
+    user_id bigint)
+
+user (id bigint GEN, 
+    eid varchar(255), 
+    enabled tinyint not null, 
+    first_name varchar(255), 
+    last_name varchar(255), 
+    password varchar(255), 
+    roles varchar(255), 
+    tels varchar(255), 
+    instance_id bigint)
+ user_classes (user_id bigint not null, classes_id bigint not null)
+ user_received (user_id bigint not null, received_id bigint not null)
+ user_sent (user_id bigint not null, sent_id bigint not null)
