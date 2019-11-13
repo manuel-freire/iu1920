@@ -1,6 +1,6 @@
 package es.ucm.fdi.iw.model;
 
-import com.fasterxml.jackson.annotation.JsonView;
+import com.fasterxml.jackson.annotation.JsonIgnoreType;
 
 import javax.persistence.*;
 import java.util.ArrayList;
@@ -12,6 +12,7 @@ import java.util.List;
  * @author mfreire
  */
 @Entity
+@JsonIgnoreType
 public class Instance {
 	private long id;
 	private List<EClass> classes = new ArrayList<>();
@@ -29,7 +30,7 @@ public class Instance {
 		this.id = id;
 	}
 
-	@OneToMany(targetEntity = User.class)
+	@OneToMany(targetEntity = EClass.class)
 	@JoinColumn(name = "instance_id")
 	public List<EClass> getClasses() {
 		return classes;
@@ -59,7 +60,7 @@ public class Instance {
 		this.students = students;
 	}
 
-	@OneToMany(targetEntity = User.class)
+	@OneToMany(targetEntity = Message.class)
 	@JoinColumn(name = "instance_id")
 	public List<Message> getMessages() {
 		return messages;

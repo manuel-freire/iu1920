@@ -1,12 +1,20 @@
 package es.ucm.fdi.iw.model;
 
+import java.io.IOException;
+import java.net.UnknownServiceException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
 import javax.persistence.*;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonView;
+import com.fasterxml.jackson.core.JsonGenerator;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonSerializer;
+import com.fasterxml.jackson.databind.SerializerProvider;
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 
 /**
  * A user; can be an Admin, a Teacher, or a Guardian.
@@ -18,17 +26,15 @@ import com.fasterxml.jackson.annotation.JsonView;
 @Entity
 public class User {
 
-	enum Role {
+	public enum Role {
 		ADMIN,
 		TEACHER,
 		GUARDIAN
 	}
-
-	@JsonView(Views.Public.class)
 	private long id;
 
-	@JsonView(Views.Public.class)
 	private String password;
+	@JsonView(Views.Public.class)
 	private String roles; // split by ',' to separate roles
 	private byte enabled;
 
@@ -39,17 +45,25 @@ public class User {
 	}
 	
 	// application-specific fields
-	private String eid;
+	@JsonView(Views.Public.class)
+	private String uid;
 	private Instance instance;
+	@JsonView(Views.Public.class)
 	private String firstName;
+	@JsonView(Views.Public.class)
 	private String lastName;
+	@JsonView(Views.Public.class)
 	private String tels;
 
 	// for teachers, represents where the teacher teaches
 	// for guardians, what they are guarding
+	@JsonView(Views.Public.class)
+	@JsonSerialize(using = EClass.RefsSerializer.class)
 	private List<EClass> classes = new ArrayList<>();
 
+	@JsonIgnore
 	private List<UMessage> sent = new ArrayList<>();
+	@JsonIgnore
 	private List<UMessage> received = new ArrayList<>();
 	
 	@Id
@@ -62,6 +76,7 @@ public class User {
 		this.id = id;
 	}	
 
+	@Column(nullable = false)
 	public String getPassword() {
 		return password;
 	}
@@ -96,12 +111,12 @@ public class User {
 	}
 
 	@Column(unique=true)
-	public String getEid() {
-		return eid;
+	public String getUid() {
+		return uid;
 	}
 
-	public void setEid(String eid) {
-		this.eid = eid;
+	public void setUid(String uid) {
+		this.uid = uid;
 	}
 
 	@ManyToMany(targetEntity = EClass.class)
@@ -153,5 +168,15 @@ public class User {
 
 	public void setReceived(List<UMessage> received) {
 		this.received = received;
+	}
+
+	public static class RefsSerializer extends JsonSerializer< List<User> > {
+		@Override
+		public void serialize(List<User> os, JsonGenerator g, SerializerProvider serializerProvider)
+				throws IOException, JsonProcessingException {
+			g.writeStartArray();
+			for (User o : os) g.writeObject(o.getUid());
+			g.writeEndArray();
+		}
 	}
 }

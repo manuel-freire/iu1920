@@ -1,8 +1,14 @@
 package es.ucm.fdi.iw.model;
 
 import com.fasterxml.jackson.annotation.JsonView;
+import com.fasterxml.jackson.core.JsonGenerator;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonSerializer;
+import com.fasterxml.jackson.databind.SerializerProvider;
 
 import javax.persistence.*;
+import java.io.IOException;
+import java.util.List;
 
 /**
  * A group of students, with one or more teachers.
@@ -53,5 +59,15 @@ public class UMessage {
 
 	public void setLabels(String labels) {
 		this.labels = labels;
+	}
+
+	public static class RefsSerializer extends JsonSerializer<List<UMessage>> {
+		@Override
+		public void serialize(List<UMessage> os, JsonGenerator g, SerializerProvider serializerProvider)
+				throws IOException, JsonProcessingException {
+			g.writeStartArray();
+			for (UMessage o : os) g.writeObject(o.getMessage().getMid());
+			g.writeEndArray();
+		}
 	}
 }

@@ -1,6 +1,7 @@
 package es.ucm.fdi.iw.model;
 
 import com.fasterxml.jackson.annotation.JsonView;
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 
 import javax.persistence.*;
 import java.util.ArrayList;
@@ -15,9 +16,11 @@ import java.util.List;
 public class Message {
 	@JsonView(Views.Public.class)
 	private long id;
+	private String mid;
 	private Instance instance;
     private User from;
-    private List<User> to = new ArrayList<>();
+	@JsonSerialize(using = User.RefsSerializer.class)
+	private List<User> to = new ArrayList<>();
     private Message parent;
     private String subject;
     private String body;
@@ -30,6 +33,15 @@ public class Message {
 	
 	public void setId(long id) {
 		this.id = id;
+	}
+
+	@Column(nullable = false, unique = true)
+	public String getMid() {
+		return mid;
+	}
+
+	public void setMid(String mid) {
+		this.mid = mid;
 	}
 
 	@ManyToOne(targetEntity = Instance.class)

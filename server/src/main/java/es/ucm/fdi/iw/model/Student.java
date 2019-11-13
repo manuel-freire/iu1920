@@ -1,10 +1,14 @@
 package es.ucm.fdi.iw.model;
 
 import com.fasterxml.jackson.annotation.JsonView;
+import com.fasterxml.jackson.core.JsonGenerator;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonSerializer;
+import com.fasterxml.jackson.databind.SerializerProvider;
 
 import javax.persistence.*;
+import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 
 /**
@@ -16,7 +20,7 @@ public class Student {
 	private long id;
 	private Instance instance;
 	@JsonView(Views.Public.class)
-	private long eid;
+	private long sid;
 	private String firstName;
 	private String lastName;
 	private EClass eClass;
@@ -42,12 +46,12 @@ public class Student {
 	}
 
 	@Column(unique=true)
-	public long getEid() {
-		return eid;
+	public long getSid() {
+		return sid;
 	}
 
-	public void setEid(long eid) {
-		this.eid = eid;
+	public void setSid(long sid) {
+		this.sid = sid;
 	}
 
 	public String getFirstName() {
@@ -82,5 +86,15 @@ public class Student {
 
 	public void setGuardians(List<User> guardians) {
 		this.guardians = guardians;
+	}
+
+	public static class RefsSerializer extends JsonSerializer< List<Student> > {
+		@Override
+		public void serialize(List<Student> os, JsonGenerator g, SerializerProvider serializerProvider)
+				throws IOException, JsonProcessingException {
+			g.writeStartArray();
+			for (Student o : os) g.writeObject(o.getSid());
+			g.writeEndArray();
+		}
 	}
 }

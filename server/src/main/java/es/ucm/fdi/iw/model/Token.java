@@ -10,10 +10,10 @@ import java.util.List;
  *
  * @author mfreire
  */
+@Entity
 public class Token {
 	private long id;
 	private String key;
-	private Instance instance;
 	private User user;
 
 	@Id
@@ -33,15 +33,6 @@ public class Token {
 
 	public void setKey(String key) {
 		this.key = key;
-	}
-
-	@ManyToOne(targetEntity = Instance.class)
-	public Instance getInstance() {
-		return instance;
-	}
-
-	public void setInstance(Instance instance) {
-		this.instance = instance;
 	}
 
     @ManyToOne(targetEntity = User.class)

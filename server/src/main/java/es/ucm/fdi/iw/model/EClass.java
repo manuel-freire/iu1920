@@ -1,12 +1,17 @@
 package es.ucm.fdi.iw.model;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.ThreadLocalRandom;
 
 import javax.persistence.*;
 
 import com.fasterxml.jackson.annotation.JsonView;
+import com.fasterxml.jackson.core.JsonGenerator;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonSerializer;
+import com.fasterxml.jackson.databind.SerializerProvider;
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 
 /**
  * A group of students, with one or more teachers.
@@ -18,10 +23,10 @@ import com.fasterxml.jackson.annotation.JsonView;
 public class EClass {
 	private long id;
     @JsonView(Views.Public.class)
-	private String eid;
-    @JsonView(Views.Public.class)
+	private String cid;
+	@JsonSerialize(using = User.RefsSerializer.class)
 	private List<User> teachers = new ArrayList<>();
-    @JsonView(Views.Public.class)
+	@JsonSerialize(using = Student.RefsSerializer.class)
 	private List<Student> students = new ArrayList<>();
 	private Instance instance;
 
@@ -44,13 +49,13 @@ public class EClass {
 		this.instance = instance;
 	}
 
-	@Column(unique = true)
-	public String getEid() {
-		return eid;
+	@Column(unique = true, nullable = false)
+	public String getCid() {
+		return cid;
 	}
 
-	public void setEid(String eid) {
-		this.eid = eid;
+	public void setCid(String cid) {
+		this.cid = cid;
 	}
 
 	@ManyToMany(targetEntity = User.class)
@@ -69,5 +74,15 @@ public class EClass {
 
 	public void setStudents(List<Student> students) {
 		this.students = students;
+	}
+
+	public static class RefsSerializer extends JsonSerializer< List<EClass> > {
+	    @Override
+    	public void serialize(List<EClass> os, JsonGenerator g, SerializerProvider serializerProvider)
+				  throws IOException, JsonProcessingException {
+    	    g.writeStartArray();
+    	    for (EClass o : os) g.writeObject(o.getCid());
+    	    g.writeEndArray();
+	    }
 	}
 }

@@ -1,5 +1,6 @@
 package es.ucm.fdi.iw.control;
 
+import com.fasterxml.jackson.annotation.JsonView;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import es.ucm.fdi.iw.LocalData;
@@ -17,6 +18,8 @@ import javax.persistence.EntityManager;
 import javax.servlet.http.HttpServletResponse;
 import javax.transaction.Transactional;
 import java.io.*;
+import java.security.SecureRandom;
+import java.util.Base64;
 import java.util.List;
 
 /**
@@ -52,46 +55,68 @@ public class ApiController {
 	     }
 	}
 
-	private Instance getInstance(long apiKey, boolean createIfAbsent) {
-		List<Instance> results = entityManager.createQuery(
-				"from Instance where key = :apiKey", Instance.class)
-				.setParameter("apiKey", apiKey)
-				.getResultList();
-		Instance i = null;
-		if (results.isEmpty()) {
-			if (createIfAbsent) {
-				i = new Instance();
-				// FIXME i.setKey(""+apiKey);
-				entityManager.persist(i);
-				return i;
-			} else {
-				throw new IllegalArgumentException("Bad apiKey: " + apiKey);
-			}
-		} else {
-			i = results.get(0);
+	@ResponseStatus(value=HttpStatus.FORBIDDEN, reason="Not authorized")  // 403
+	public static class ApiAuthException extends RuntimeException {
+		public ApiAuthException(String text) {
+			super(text);
+			log.info(text);
 		}
-		return i;
 	}
 
-	private User getUser(String eid, long instanceId) {
-		List<User> results = entityManager.createQuery(
-				"from User where eid = :eid and instance.id = :instanceId", User.class)
-				.setParameter("eid", eid)
-				.setParameter("instanceId", instanceId)
+	private Token resolveTokenOrBail(String tokenKey) {
+		List<Token> results = entityManager.createQuery(
+				"from Token where key = :key", Token.class)
+				.setParameter("key", tokenKey)
 				.getResultList();
-		User u = null;
 		if ( ! results.isEmpty()) {
-			u = results.get(0);
+			return results.get(0);
+		} else {
+			throw new ApiException("Invalid token", null);
 		}
-		return u;
 	}
 
+	/**
+	 * Generates random tokens. From https://stackoverflow.com/a/44227131/15472
+	 * @param byteLength
+	 * @return
+	 */
+	public static String generateRandomBase64Token(int byteLength) {
+		SecureRandom secureRandom = new SecureRandom();
+		byte[] token = new byte[byteLength];
+		secureRandom.nextBytes(token);
+		return Base64.getUrlEncoder().withoutPadding().encodeToString(token); //base64 encoding
+	}
+	/**
+	 * Requests a token from the system. Provides a user to do so, for which only the
+	 * password and uid are looked at
+	 * @param loginUser attempting to log in.
+	 * @throws JsonProcessingException
+	 */
     @PostMapping("/login")
+	@JsonView(Views.Public.class)
     @Transactional
-    public GlobalState addClass(
-            @RequestBody User user) throws JsonProcessingException {
-        log.info("/login/" + new ObjectMapper().writeValueAsString(user));
-        return null;
+    public GlobalState login(
+            @RequestBody User loginUser) throws JsonProcessingException {
+        log.info("/login/" + new ObjectMapper().writeValueAsString(loginUser));
+
+		List<User> results = entityManager.createQuery(
+				"from User where uid = :uid", User.class)
+				.setParameter("uid", loginUser.getUid())
+				.getResultList();
+		// only expecting one, because uid is unique
+		User u = results.isEmpty() ? null : results.get(0);
+
+		if (u == null // NOTE: THIS SHOULD CHECK AN *ENCODED* PASSWORD
+		              // PLAINTEXT IS A VERY BAD IDEA (outside this demo code)
+				|| ! u.getPassword().equals(loginUser.getPassword())) {
+			throw new ApiAuthException("Invalid uid or password");
+		}
+
+		Token token = new Token();
+		token.setUser(u);
+		token.setKey(generateRandomBase64Token(16));
+		entityManager.persist(token);
+		return new GlobalState(token);
     }
 
 	@PostMapping("/{token}/addclass")
@@ -100,7 +125,16 @@ public class ApiController {
 			@PathVariable String token,
 			@RequestBody EClass data) throws JsonProcessingException {
 		log.info(token + "/addclass/" + new ObjectMapper().writeValueAsString(data));
-        return null;
+		Token t = resolveTokenOrBail(token);
+		User u = t.getUser();
+		if ( ! u.hasRole(User.Role.ADMIN)) {
+			throw new ApiException("Only admins can add classes", null);
+		}
+		EClass ec = new EClass();
+		ec.setCid(data.getCid());
+		ec.setInstance(u.getInstance());
+		entityManager.persist(ec);
+        return new GlobalState(t);
 	}
 
     @PostMapping("/{token}/addstudent")
