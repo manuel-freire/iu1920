@@ -6,6 +6,7 @@ import java.util.List;
 
 import javax.persistence.*;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonView;
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -20,14 +21,15 @@ import com.fasterxml.jackson.databind.annotation.JsonSerialize;
  * @author mfreire
  */
 @Entity
-public class EClass {
+public class EClass extends Referenceable {
 	private long id;
     @JsonView(Views.Public.class)
 	private String cid;
-	@JsonSerialize(using = User.RefsSerializer.class)
+	@JsonSerialize(using = Referenceable.ListSerializer.class)
 	private List<User> teachers = new ArrayList<>();
-	@JsonSerialize(using = Student.RefsSerializer.class)
+	@JsonSerialize(using = Referenceable.ListSerializer.class)
 	private List<Student> students = new ArrayList<>();
+	@JsonIgnore
 	private Instance instance;
 
 	@Id
@@ -76,13 +78,10 @@ public class EClass {
 		this.students = students;
 	}
 
-	public static class RefsSerializer extends JsonSerializer< List<EClass> > {
-	    @Override
-    	public void serialize(List<EClass> os, JsonGenerator g, SerializerProvider serializerProvider)
-				  throws IOException, JsonProcessingException {
-    	    g.writeStartArray();
-    	    for (EClass o : os) g.writeObject(o.getCid());
-    	    g.writeEndArray();
-	    }
+	@Override
+	@Transient
+	@JsonIgnore
+	public String getRef() {
+		return getCid();
 	}
 }

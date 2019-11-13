@@ -1,5 +1,6 @@
 package es.ucm.fdi.iw.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonView;
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -18,10 +19,11 @@ import java.util.List;
  */
 @Entity
 public class UMessage {
-	@JsonView(Views.Public.class)
+	@JsonIgnore
 	private long id;
-	private Instance instance;
+	@JsonIgnore
 	private User user;
+	@JsonIgnore
 	private Message message;
 	private String labels;
 
@@ -59,15 +61,5 @@ public class UMessage {
 
 	public void setLabels(String labels) {
 		this.labels = labels;
-	}
-
-	public static class RefsSerializer extends JsonSerializer<List<UMessage>> {
-		@Override
-		public void serialize(List<UMessage> os, JsonGenerator g, SerializerProvider serializerProvider)
-				throws IOException, JsonProcessingException {
-			g.writeStartArray();
-			for (UMessage o : os) g.writeObject(o.getMessage().getMid());
-			g.writeEndArray();
-		}
 	}
 }

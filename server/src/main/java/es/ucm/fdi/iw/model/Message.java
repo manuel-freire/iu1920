@@ -1,5 +1,6 @@
 package es.ucm.fdi.iw.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonView;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 
@@ -13,14 +14,17 @@ import java.util.List;
  * @author mfreire
  */
 @Entity
-public class Message {
-	@JsonView(Views.Public.class)
+public class Message extends Referenceable {
 	private long id;
+	@JsonView(Views.Public.class)
 	private String mid;
+	@JsonIgnore
 	private Instance instance;
+	@JsonSerialize(using = Referenceable.RefSerializer.class)
     private User from;
-	@JsonSerialize(using = User.RefsSerializer.class)
+	@JsonSerialize(using = Referenceable.ListSerializer.class)
 	private List<User> to = new ArrayList<>();
+	@JsonSerialize(using = Referenceable.RefSerializer.class)
     private Message parent;
     private String subject;
     private String body;
@@ -94,5 +98,12 @@ public class Message {
 
 	public void setBody(String body) {
 		this.body = body;
+	}
+
+	@Override
+	@Transient
+	@JsonIgnore
+	public String getRef() {
+		return getMid();
 	}
 }

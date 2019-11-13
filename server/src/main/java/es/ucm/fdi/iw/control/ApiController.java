@@ -2,11 +2,13 @@ package es.ucm.fdi.iw.control;
 
 import com.fasterxml.jackson.annotation.JsonView;
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import es.ucm.fdi.iw.LocalData;
 import es.ucm.fdi.iw.model.*;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.apache.logging.log4j.util.Strings;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -19,7 +21,9 @@ import javax.servlet.http.HttpServletResponse;
 import javax.transaction.Transactional;
 import java.io.*;
 import java.security.SecureRandom;
+import java.util.ArrayList;
 import java.util.Base64;
+import java.util.Collection;
 import java.util.List;
 
 /**
@@ -123,7 +127,7 @@ public class ApiController {
 	@Transactional
 	public GlobalState addClass(
 			@PathVariable String token,
-			@RequestBody EClass data) throws JsonProcessingException {
+			@RequestBody JsonNode data) throws JsonProcessingException {
 		log.info(token + "/addclass/" + new ObjectMapper().writeValueAsString(data));
 		Token t = resolveTokenOrBail(token);
 		User u = t.getUser();
@@ -131,28 +135,160 @@ public class ApiController {
 			throw new ApiException("Only admins can add classes", null);
 		}
 		EClass ec = new EClass();
-		ec.setCid(data.getCid());
+		ec.setCid(data.get("cid").asText());
 		ec.setInstance(u.getInstance());
 		entityManager.persist(ec);
         return new GlobalState(t);
 	}
 
-    @PostMapping("/{token}/addstudent")
+	private static <T extends Referenceable> T resolve(Collection<T> ts, String ref) {
+    	if (ref == null) return null;
+    	for (T t : ts) {
+    		if (t.getRef().equals(ref)) return t;
+		}
+    	return null;
+	}
+
+	@PostMapping("/{token}/addstudent")
     @Transactional
     public GlobalState addStudent(
             @PathVariable String token,
-            @RequestBody EClass data) throws JsonProcessingException {
+            @RequestBody JsonNode data) throws JsonProcessingException {
         log.info(token + "/addstudent/" + new ObjectMapper().writeValueAsString(data));
-        return null;
+		Token t = resolveTokenOrBail(token);
+		User u = t.getUser();
+		if ( ! u.hasRole(User.Role.ADMIN)) {
+			throw new ApiException("Only admins can add students", null);
+		}
+		// create an empty Student, and start to copy stuff over
+		Student result = new Student();
+
+		// the student must specify a valid class
+		EClass ec = resolve(u.getInstance().getClasses(), data.get("cid").asText());
+		if (ec == null) {
+			throw new ApiException("Invalid class ref " + data.get("cid"), null);
+		} else {
+			result.setEClass(ec);
+			ec.getStudents().add(result);
+		}
+		// the student may specify existing guardians
+		if (data.has("guardians")) {
+			for (JsonNode n : data.get("guardians")) {
+				User g = resolve(u.getInstance().getUsers(), n.asText());
+				if (g == null) {
+					throw new ApiException("Guardian with uid " + n.asText() + " not found", null);
+				}
+			}
+		}
+		// the student must specify first and last names
+		String first = data.get("first_name").asText();
+		String last = data.get("last_name").asText();
+		if (first.isEmpty() || last.isEmpty()) {
+			throw new ApiException("Missing first or last names", null);
+		}
+		result.setFirstName(first);
+		result.setLastName(last);
+		// and a unique student id
+		String sid = data.get("sid").asText();
+		if (resolve(u.getInstance().getStudents(), sid) != null) {
+			throw new ApiException("Duplicate student id: " + sid, null);
+		}
+		result.setSid(sid);
+
+		result.setInstance(u.getInstance());
+		u.getInstance().getStudents().add(result);
+		entityManager.persist(result);
+		entityManager.flush(); // so returned state includes new student
+		return new GlobalState(t);
     }
 
     @PostMapping("/{token}/adduser")
     @Transactional
     public GlobalState addUser(
             @PathVariable String token,
-            @RequestBody EClass data) throws JsonProcessingException {
+            @RequestBody JsonNode data) throws JsonProcessingException {
         log.info(token + "/adduser/" + new ObjectMapper().writeValueAsString(data));
-        return null;
+		Token t = resolveTokenOrBail(token);
+		User u = t.getUser();
+		if ( ! u.hasRole(User.Role.ADMIN)) {
+			throw new ApiException("Only admins can add users", null);
+		}
+		// create an empty User, and start to copy stuff over
+		User result = new User();
+
+		// the user must specify a valid type
+		String type = data.get("type").asText();
+		User.Role role = null;
+		try {
+			role = User.Role.valueOf(type);
+		} catch (Throwable e) {
+			throw new ApiException("Bad or missing user type", e);
+		}
+		result.setRoles("" + role);
+
+		// the uid must be present and not exist already
+		String uid = data.get("uid").asText();
+		if (resolve(u.getInstance().getUsers(), uid) != null) {
+			throw new ApiException("Duplicate user id: " + uid, null);
+		}
+		result.setUid(uid);
+
+		// users must specify first and last names
+		String first = data.get("first_name").asText();
+		String last = data.get("last_name").asText();
+		if (first.isEmpty() || last.isEmpty()) {
+			throw new ApiException("Missing first or last names", null);
+		}
+		result.setFirstName(first);
+		result.setLastName(last);
+
+		// users must specify telephones. These must be numeric, with dashes
+		// the student may specify existing guardians
+		ArrayList<String> tels = new ArrayList<>();
+		for (JsonNode n : data.get("tels")) {
+			String tel = n.asText();
+			if ( ! tel.matches("[0-9]{3}-[0-9]{3}-[0-9]{3}")) {
+				throw new ApiException(
+						"Bad phone: expected ddd-ddd-ddd, with d a digit. Got " + tel, null);
+			} else {
+				tels.add(tel);
+			}
+		}
+		result.setTelephones(Strings.join(tels, ','));
+		if (tels.isEmpty()) {
+			throw new ApiException("Expected at least 1 telephone number", null);
+		}
+
+		// the user may specify existing class ids. This is only useful for teachers
+		if (data.has("classes") && role.equals(User.Role.TEACHER)) {
+			for (JsonNode n : data.get("classes")) {
+				EClass ec = resolve(u.getInstance().getClasses(), n.asText());
+				if (ec == null) {
+					throw new ApiException("Class with cid " + n.asText() + " not found", null);
+				} else {
+					result.getClasses().add(ec);
+					ec.getTeachers().add(result);
+				}
+			}
+		}
+		// the user may specify existing student ids. This is only useful for guardians
+		if (data.has("students") && role.equals(User.Role.GUARDIAN)) {
+			for (JsonNode n : data.get("students")) {
+				Student s = resolve(u.getInstance().getStudents(), n.asText());
+				if (s == null) {
+					throw new ApiException("Student with sid " + n.asText() + " not found", null);
+				} else {
+					result.getStudents().add(s);
+					s.getGuardians().add(result);
+				}
+			}
+		}
+
+		result.setInstance(u.getInstance());
+		u.getInstance().getUsers().add(result);
+		entityManager.persist(result);
+		entityManager.flush(); // so returned state includes new user
+		return new GlobalState(t);
     }
 
 	@PostMapping("/{token}/rm/{oid}")

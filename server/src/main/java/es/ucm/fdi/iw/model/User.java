@@ -1,20 +1,19 @@
 package es.ucm.fdi.iw.model;
 
-import java.io.IOException;
-import java.net.UnknownServiceException;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-
-import javax.persistence.*;
-
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonView;
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonSerializer;
 import com.fasterxml.jackson.databind.SerializerProvider;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+
+import javax.persistence.*;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 
 /**
  * A user; can be an Admin, a Teacher, or a Guardian.
@@ -24,18 +23,20 @@ import com.fasterxml.jackson.databind.annotation.JsonSerialize;
  * @author mfreire
  */
 @Entity
-public class User {
+public class User extends Referenceable {
 
 	public enum Role {
 		ADMIN,
 		TEACHER,
 		GUARDIAN
 	}
+	@JsonIgnore
 	private long id;
-
+	@JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
 	private String password;
-	@JsonView(Views.Public.class)
+	@JsonIgnore
 	private String roles; // split by ',' to separate roles
+	@JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
 	private byte enabled;
 
 	public boolean hasRole(Role role) {
@@ -45,20 +46,28 @@ public class User {
 	}
 	
 	// application-specific fields
+	@JsonIgnore
+	private Instance instance;
+
+	@JsonView(Views.Public.class)
+	@JsonSerialize(using = Referenceable.ListSerializer.class)
+	private List<Student> students = new ArrayList<>();
+
 	@JsonView(Views.Public.class)
 	private String uid;
-	private Instance instance;
 	@JsonView(Views.Public.class)
+	@JsonProperty("first_name")
 	private String firstName;
 	@JsonView(Views.Public.class)
+	@JsonProperty("last_name")
 	private String lastName;
-	@JsonView(Views.Public.class)
-	private String tels;
+	@JsonIgnore
+	private String telephones;
 
 	// for teachers, represents where the teacher teaches
 	// for guardians, what they are guarding
 	@JsonView(Views.Public.class)
-	@JsonSerialize(using = EClass.RefsSerializer.class)
+	@JsonSerialize(using = Referenceable.ListSerializer.class)
 	private List<EClass> classes = new ArrayList<>();
 
 	@JsonIgnore
@@ -128,12 +137,21 @@ public class User {
 		this.classes = classes;
 	}
 
-	public String getTels() {
-		return tels;
+	@ManyToMany(targetEntity = Student.class)
+	public List<Student> getStudents() {
+		return students;
 	}
 
-	public void setTels(String tels) {
-		this.tels = tels;
+	public void setStudents(List<Student> students) {
+		this.students = students;
+	}
+
+	public String getTelephones() {
+		return telephones;
+	}
+
+	public void setTelephones(String tels) {
+		this.telephones = tels;
 	}
 
 	public String getFirstName() {
@@ -170,12 +188,34 @@ public class User {
 		this.received = received;
 	}
 
-	public static class RefsSerializer extends JsonSerializer< List<User> > {
+	@Override
+	@Transient
+	@JsonIgnore
+	public String getRef() {
+		return getUid();
+	}
+
+	@Transient
+	public String getType() {
+		return roles.toLowerCase();
+	}
+	public void setType(String type) {
+		this.roles = ""+Role.valueOf(type.toUpperCase());
+	}
+
+	@Transient
+	@JsonView(Views.Public.class)
+	@JsonSerialize(using = StringToListSerializer.class)
+	public String getTels() {
+		return getTelephones();
+	}
+
+	private static class StringToListSerializer extends JsonSerializer<String> {
 		@Override
-		public void serialize(List<User> os, JsonGenerator g, SerializerProvider serializerProvider)
+		public void serialize(String ss, JsonGenerator g, SerializerProvider serializerProvider)
 				throws IOException, JsonProcessingException {
 			g.writeStartArray();
-			for (User o : os) g.writeObject(o.getUid());
+			for (String s : ss.split(",")) g.writeString(s);
 			g.writeEndArray();
 		}
 	}

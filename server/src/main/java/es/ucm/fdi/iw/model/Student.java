@@ -1,13 +1,10 @@
 package es.ucm.fdi.iw.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonView;
-import com.fasterxml.jackson.core.JsonGenerator;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.JsonSerializer;
-import com.fasterxml.jackson.databind.SerializerProvider;
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 
 import javax.persistence.*;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -15,15 +12,21 @@ import java.util.List;
  * A student.
  */
 @Entity
-public class Student {
-    @JsonView(Views.Public.class)    
+public class Student extends Referenceable {
+    @JsonIgnore
 	private long id;
+	@JsonIgnore
 	private Instance instance;
 	@JsonView(Views.Public.class)
-	private long sid;
+	private String sid;
+	@JsonView(Views.Public.class)
 	private String firstName;
+	@JsonView(Views.Public.class)
 	private String lastName;
+	@JsonIgnore
 	private EClass eClass;
+	@JsonView(Views.Public.class)
+	@JsonSerialize(using = Referenceable.ListSerializer.class)
 	private List<User> guardians = new ArrayList<>();
 
 	@Id
@@ -46,11 +49,11 @@ public class Student {
 	}
 
 	@Column(unique=true)
-	public long getSid() {
+	public String getSid() {
 		return sid;
 	}
 
-	public void setSid(long sid) {
+	public void setSid(String sid) {
 		this.sid = sid;
 	}
 
@@ -71,6 +74,7 @@ public class Student {
 	}
 
 	@ManyToOne(targetEntity = EClass.class)
+	@JsonIgnore
 	public EClass getEClass() {
 		return eClass;
 	}
@@ -88,13 +92,16 @@ public class Student {
 		this.guardians = guardians;
 	}
 
-	public static class RefsSerializer extends JsonSerializer< List<Student> > {
-		@Override
-		public void serialize(List<Student> os, JsonGenerator g, SerializerProvider serializerProvider)
-				throws IOException, JsonProcessingException {
-			g.writeStartArray();
-			for (Student o : os) g.writeObject(o.getSid());
-			g.writeEndArray();
-		}
+	@Override
+	@Transient
+	@JsonIgnore
+	public String getRef() {
+		return getSid();
+	}
+
+	@Transient
+	@JsonView(Views.Public.class)
+	public String getCid() {
+		return getEClass().getCid();
 	}
 }

@@ -36,42 +36,45 @@
 -- );
 
 INSERT INTO instance(id) VALUES (1);
-INSERT INTO user(id, password, roles, enabled, uid, instance_id, first_name, last_name, tels) VALUES(
+INSERT INTO user(id, password, roles, enabled, uid, instance_id, first_name, last_name, telephones) VALUES(
     1, 'ZX05e', 'ADMIN', 1, '68181108T', 1, 'Francisca', 'Ejemplo Ejémplez', '912-345-987'
 );
 INSERT INTO instance(id) VALUES (2);
-INSERT INTO user(id, password, roles, enabled, uid, instance_id, first_name, last_name, tels) VALUES(
+INSERT INTO user(id, password, roles, enabled, uid, instance_id, first_name, last_name, telephones) VALUES(
     2, 'ZX05e', 'ADMIN', 1, '79963941W', 2, 'Francisca', 'Ejemplo Ejémplez', '912-345-987'
 );
 INSERT INTO instance(id) VALUES (3);
-INSERT INTO user(id, password, roles, enabled, uid, instance_id, first_name, last_name, tels) VALUES(
+INSERT INTO user(id, password, roles, enabled, uid, instance_id, first_name, last_name, telephones) VALUES(
     3, 'ZX05e', 'ADMIN', 1, '19125224B', 3, 'Francisca', 'Ejemplo Ejémplez', '912-345-987'
 );
 INSERT INTO instance(id) VALUES (4);
-INSERT INTO user(id, password, roles, enabled, uid, instance_id, first_name, last_name, tels) VALUES(
+INSERT INTO user(id, password, roles, enabled, uid, instance_id, first_name, last_name, telephones) VALUES(
     4, 'ZX05e', 'ADMIN', 1, '46885519L', 4, 'Francisca', 'Ejemplo Ejémplez', '912-345-987'
 );
 INSERT INTO instance(id) VALUES (5);
-INSERT INTO user(id, password, roles, enabled, uid, instance_id, first_name, last_name, tels) VALUES(
+INSERT INTO user(id, password, roles, enabled, uid, instance_id, first_name, last_name, telephones) VALUES(
     5, 'ZX05e', 'ADMIN', 1, '82414993J', 5, 'Francisca', 'Ejemplo Ejémplez', '912-345-987'
 );
 INSERT INTO instance(id) VALUES (6);
-INSERT INTO user(id, password, roles, enabled, uid, instance_id, first_name, last_name, tels) VALUES(
+INSERT INTO user(id, password, roles, enabled, uid, instance_id, first_name, last_name, telephones) VALUES(
     6, 'ZX05e', 'ADMIN', 1, '52253412B', 6, 'Francisca', 'Ejemplo Ejémplez', '912-345-987'
 );
 INSERT INTO instance(id) VALUES (7);
-INSERT INTO user(id, password, roles, enabled, uid, instance_id, first_name, last_name, tels) VALUES(
+INSERT INTO user(id, password, roles, enabled, uid, instance_id, first_name, last_name, telephones) VALUES(
     7, 'ZX05e', 'ADMIN', 1, '89462644G', 7, 'Francisca', 'Ejemplo Ejémplez', '912-345-987'
 );
 INSERT INTO instance(id) VALUES (8);
-INSERT INTO user(id, password, roles, enabled, uid, instance_id, first_name, last_name, tels) VALUES(
+INSERT INTO user(id, password, roles, enabled, uid, instance_id, first_name, last_name, telephones) VALUES(
     8, 'ZX05e', 'ADMIN', 1, '28345598F', 8, 'Francisca', 'Ejemplo Ejémplez', '912-345-987'
 );
 INSERT INTO instance(id) VALUES (9);
-INSERT INTO user(id, password, roles, enabled, uid, instance_id, first_name, last_name, tels) VALUES(
-    9, 'ZX05e', 'ADMIN', 1, '16337065G', 9, 'Francisca', 'Ejemplo Ejémplez', '912-345-987'
+INSERT INTO user(id, password, roles, enabled, uid, instance_id, first_name, last_name, telephones) VALUES(
+    9, 'ZX05e', 'ADMIN', 1, '16337065G', 9, 'Francisca', 'Ejemplo Ejémplez', '912-345-123,912-345-987'
+);
+INSERT INTO token(id, key, user_id) VALUES (
+    1, 'rdFA2M75YzfVdWUtEftQ9g', 9
 );
 INSERT INTO instance(id) VALUES (10);
-INSERT INTO user(id, password, roles, enabled, uid, instance_id, first_name, last_name, tels) VALUES(
+INSERT INTO user(id, password, roles, enabled, uid, instance_id, first_name, last_name, telephones) VALUES(
     10, 'ZX05e', 'ADMIN', 1, '43901720X', 10, 'Francisca', 'Ejemplo Ejémplez', '912-345-987'
 );
