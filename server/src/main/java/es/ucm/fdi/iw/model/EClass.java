@@ -69,7 +69,7 @@ public class EClass extends Referenceable {
 		this.teachers = teachers;
 	}
 
-	@OneToMany(targetEntity = Student.class)
+	@OneToMany(targetEntity = Student.class, cascade = CascadeType.ALL)
 	public List<Student> getStudents() {
 		return students;
 	}

@@ -170,7 +170,7 @@ public class User extends Referenceable {
 		this.lastName = lastName;
 	}
 
-	@ManyToMany(targetEntity = UMessage.class)
+	@ManyToMany(targetEntity = UMessage.class, cascade = CascadeType.ALL)
 	public List<UMessage> getSent() {
 		return sent;
 	}
@@ -179,7 +179,7 @@ public class User extends Referenceable {
 		this.sent = sent;
 	}
 
-	@ManyToMany(targetEntity = UMessage.class)
+	@ManyToMany(targetEntity = UMessage.class, cascade = CascadeType.ALL)
 	public List<UMessage> getReceived() {
 		return received;
 	}

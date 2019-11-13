@@ -25,6 +25,7 @@ import java.util.ArrayList;
 import java.util.Base64;
 import java.util.Collection;
 import java.util.List;
+import java.util.regex.Pattern;
 
 /**
  * Rest controller for managing a class.
@@ -202,6 +203,14 @@ public class ApiController {
 		return new GlobalState(t);
     }
 
+    private static boolean isValidPass(String pass) {
+    	boolean hasUpper = Pattern.compile("[a-z]").matcher(pass).find();
+    	boolean hasLower = Pattern.compile("[A-Z]").matcher(pass).find();
+    	boolean hasDigits = Pattern.compile("[0-9]").matcher(pass).find();
+    	boolean hasLength = pass.length() >= 5;
+    	return hasUpper && hasLower && hasDigits && hasLength;
+	}
+
     @PostMapping("/{token}/adduser")
     @Transactional
     public GlobalState addUser(
@@ -220,7 +229,7 @@ public class ApiController {
 		String type = data.get("type").asText();
 		User.Role role = null;
 		try {
-			role = User.Role.valueOf(type);
+			role = User.Role.valueOf(type.toUpperCase());
 		} catch (Throwable e) {
 			throw new ApiException("Bad or missing user type", e);
 		}
@@ -243,15 +252,16 @@ public class ApiController {
 		result.setLastName(last);
 
 		// users must specify telephones. These must be numeric, with dashes
-		// the student may specify existing guardians
 		ArrayList<String> tels = new ArrayList<>();
-		for (JsonNode n : data.get("tels")) {
-			String tel = n.asText();
-			if ( ! tel.matches("[0-9]{3}-[0-9]{3}-[0-9]{3}")) {
-				throw new ApiException(
-						"Bad phone: expected ddd-ddd-ddd, with d a digit. Got " + tel, null);
-			} else {
-				tels.add(tel);
+		if (data.has("tels")) {
+			for (JsonNode n : data.get("tels")) {
+				String tel = n.asText();
+				if ( ! tel.matches("[0-9]{3}-[0-9]{3}-[0-9]{3}")) {
+					throw new ApiException(
+							"Bad phone: expected ddd-ddd-ddd, with d a digit. Got " + tel, null);
+				} else {
+					tels.add(tel);
+				}
 			}
 		}
 		result.setTelephones(Strings.join(tels, ','));
@@ -283,6 +293,16 @@ public class ApiController {
 				}
 			}
 		}
+		// users must specify a password
+		if ( ! data.has("password")) {
+			throw new ApiException("Invalid or missing password", null);
+		} else {
+			String pass = data.get("password").asText();
+			if ( ! isValidPass(pass)) {
+				throw new ApiException("Invalid or missing password", null);
+			}
+			result.setPassword(pass);
+		}
 
 		result.setInstance(u.getInstance());
 		u.getInstance().getUsers().add(result);
@@ -297,7 +317,97 @@ public class ApiController {
 	        @PathVariable String token,
             @PathVariable String oid) throws JsonProcessingException {
 		log.info(token + "/rm/" + oid);
-		return null;
+
+		Token t = resolveTokenOrBail(token);
+		User u = t.getUser();
+		boolean found = false;
+
+		Message m = resolve(u.getInstance().getMessages(), oid);
+		if (m != null) {
+			List<UMessage> toRemove = new ArrayList<>();
+			for (UMessage um : u.getSent()) {
+				if (um.getMessage().getId() == m.getId()) toRemove.add(um);
+			}
+			for (UMessage um : u.getReceived()) {
+				if (um.getMessage().getId() == m.getId()) toRemove.add(um);
+			}
+			for (UMessage um : toRemove) {
+				entityManager.remove(um);
+				found = true;
+			}
+		} else if ( ! u.hasRole(User.Role.ADMIN)) {
+			throw new ApiException("Bad message ID (and that is the only thing you can remove)", null);
+		}
+
+		// admin-only: remove users, students, classes
+
+		if ( ! found) {
+			User o = resolve(u.getInstance().getUsers(), oid);
+			if (o != null) {
+				if (o.hasRole(User.Role.GUARDIAN)) {
+					// remove from children
+					for (Student s : o.getStudents()) {
+						s.getGuardians().remove(o);
+					}
+				}
+				if (o.hasRole(User.Role.TEACHER)) {
+					// remove from class
+					for (EClass ec : o.getClasses()) {
+						ec.getTeachers().remove(o);
+					}
+				}
+				// remove from messages too
+				for (Message msg : u.getInstance().getMessages()) {
+					if (msg.getFrom().getId() == o.getId()) {
+						msg.setFrom(null);
+					}
+					if (msg.getTo().contains(o)) {
+						msg.getTo().remove(o);
+					}
+				}
+
+				u.getInstance().getUsers().remove(o);
+				entityManager.remove(o);
+				found = true;
+			}
+		}
+		if ( ! found) {
+			Student s = resolve(u.getInstance().getStudents(), oid);
+			if (s != null) {
+				// removes from class
+				s.getEClass().getStudents().remove(s);
+				// removes from guardians
+				for (User g : s.getGuardians()) {
+					g.getStudents().remove(g);
+				}
+				u.getInstance().getStudents().remove(s);
+				entityManager.remove(s);
+				found = true;
+			}
+		}
+		if ( ! found) {
+			EClass c = resolve(u.getInstance().getClasses(), oid);
+			if (c != null) {
+				for (User teacher : c.getTeachers()) teacher.getClasses().remove(c);
+				// cascades for students, removing them; removes removed students from guardians
+				for (Student st : c.getStudents()) {
+					for (User g : st.getGuardians()) {
+						g.getStudents().remove(g);
+					}
+					// so that returned globalstate is correct
+					u.getInstance().getStudents().remove(st);
+				}
+				u.getInstance().getClasses().remove(c);
+				entityManager.remove(c);
+				found = true;
+			}
+		}
+
+		if ( ! found) {
+			throw new ApiException("ID not found; nothing removed", null);
+		}
+
+		return new GlobalState(t);
 	}
 
     @PostMapping("/{token}/send")
