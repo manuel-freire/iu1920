@@ -7,6 +7,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 /**
  * Used to ferry global state from an Instance object into JSON.
@@ -94,5 +95,7 @@ public class GlobalState {
                 }
             }
         }
+        // filter out class users: those are implicit
+        users.removeIf(o -> o.hasRole(User.Role.CLASS));
     }
 }

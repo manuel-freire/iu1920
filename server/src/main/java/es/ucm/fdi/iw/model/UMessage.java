@@ -6,6 +6,7 @@ import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonSerializer;
 import com.fasterxml.jackson.databind.SerializerProvider;
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 
 import javax.persistence.*;
 import java.io.IOException;
@@ -37,7 +38,7 @@ public class UMessage {
 		this.id = id;
 	}
 
-	@ManyToOne(targetEntity=User.class)
+	@ManyToOne(targetEntity = User.class)
 	public User getUser() {
 		return user;
 	}
@@ -46,7 +47,7 @@ public class UMessage {
 		this.user = user;
 	}
 
-	@ManyToOne(targetEntity=Message.class)
+	@ManyToOne(targetEntity = Message.class)
 	public Message getMessage() {
 		return message;
 	}
@@ -55,11 +56,44 @@ public class UMessage {
 		this.message = message;
 	}
 
+	@JsonSerialize(using = Referenceable.StringToListSerializer.class)
 	public String getLabels() {
 		return labels;
 	}
 
 	public void setLabels(String labels) {
 		this.labels = labels;
+	}
+
+	@Transient
+	public String getMsgid() {
+		return message.getMid();
+	}
+
+	@Transient
+	public String getDate() {
+		return message.getDate();
+	}
+
+	@Transient
+	@JsonSerialize(using = Referenceable.RefSerializer.class)
+	public User getFrom() {
+		return message.getFrom();
+	}
+
+	@Transient
+	@JsonSerialize(using = Referenceable.ListSerializer.class)
+	public List<User> getTo() {
+		return message.getTo();
+	}
+
+	@Transient
+	public String getBody() {
+		return message.getBody();
+	}
+
+	@Transient
+	public String getSubject() {
+		return message.getSubject();
 	}
 }

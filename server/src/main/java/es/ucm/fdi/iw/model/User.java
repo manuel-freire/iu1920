@@ -28,7 +28,8 @@ public class User extends Referenceable {
 	public enum Role {
 		ADMIN,
 		TEACHER,
-		GUARDIAN
+		GUARDIAN,
+		CLASS		// used to send to entire classes at once
 	}
 	@JsonIgnore
 	private long id;
@@ -205,18 +206,8 @@ public class User extends Referenceable {
 
 	@Transient
 	@JsonView(Views.Public.class)
-	@JsonSerialize(using = StringToListSerializer.class)
+	@JsonSerialize(using = Referenceable.StringToListSerializer.class)
 	public String getTels() {
 		return getTelephones();
-	}
-
-	private static class StringToListSerializer extends JsonSerializer<String> {
-		@Override
-		public void serialize(String ss, JsonGenerator g, SerializerProvider serializerProvider)
-				throws IOException, JsonProcessingException {
-			g.writeStartArray();
-			for (String s : ss.split(",")) g.writeString(s);
-			g.writeEndArray();
-		}
 	}
 }

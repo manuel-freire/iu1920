@@ -30,4 +30,14 @@ public abstract class Referenceable {
             g.writeEndArray();
         }
     }
+
+    public static class StringToListSerializer extends JsonSerializer<String> {
+        @Override
+        public void serialize(String ss, JsonGenerator g, SerializerProvider serializerProvider)
+                throws IOException, JsonProcessingException {
+            g.writeStartArray();
+            for (String s : ss.split(",")) g.writeString(s);
+            g.writeEndArray();
+        }
+    }
 }

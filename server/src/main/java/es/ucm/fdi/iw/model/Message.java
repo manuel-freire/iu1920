@@ -1,6 +1,7 @@
 package es.ucm.fdi.iw.model;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonIgnoreType;
 import com.fasterxml.jackson.annotation.JsonView;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 
@@ -14,18 +15,15 @@ import java.util.List;
  * @author mfreire
  */
 @Entity
+@JsonIgnoreType
 public class Message extends Referenceable {
 	private long id;
-	@JsonView(Views.Public.class)
 	private String mid;
-	@JsonIgnore
 	private Instance instance;
-	@JsonSerialize(using = Referenceable.RefSerializer.class)
     private User from;
-	@JsonSerialize(using = Referenceable.ListSerializer.class)
 	private List<User> to = new ArrayList<>();
-	@JsonSerialize(using = Referenceable.RefSerializer.class)
     private Message parent;
+	private String date;
     private String subject;
     private String body;
 
@@ -98,6 +96,14 @@ public class Message extends Referenceable {
 
 	public void setBody(String body) {
 		this.body = body;
+	}
+
+	public String getDate() {
+		return date;
+	}
+
+	public void setDate(String date) {
+		this.date = date;
 	}
 
 	@Override
