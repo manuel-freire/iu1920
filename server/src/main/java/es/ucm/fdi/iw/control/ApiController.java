@@ -16,22 +16,14 @@ import org.owasp.html.HtmlStreamEventReceiver;
 import org.owasp.html.HtmlStreamRenderer;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
-import org.springframework.util.FileCopyUtils;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.util.HtmlUtils;
 
 import javax.persistence.EntityManager;
-import javax.servlet.http.HttpServletResponse;
 import javax.transaction.Transactional;
-import java.io.*;
 import java.security.SecureRandom;
-import java.text.DateFormat;
-import java.text.SimpleDateFormat;
 import java.time.Instant;
-import java.time.OffsetDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.function.Consumer;
@@ -63,7 +55,9 @@ public class ApiController {
     public ResponseEntity handleException(ApiException e) {
         // log exception
         return ResponseEntity
-                .status(HttpStatus.BAD_REQUEST)
+                .status(e instanceof ApiAuthException ?
+						HttpStatus.FORBIDDEN :
+						HttpStatus.BAD_REQUEST)
                 .body(e.getMessage());
     }
 
@@ -80,9 +74,9 @@ public class ApiController {
 	}
 
 	@ResponseStatus(value=HttpStatus.FORBIDDEN, reason="Not authorized")  // 403
-	public static class ApiAuthException extends RuntimeException {
+	public static class ApiAuthException extends ApiException {
 		public ApiAuthException(String text) {
-			super(text);
+			super(text, null);
 			log.info(text);
 		}
 	}
@@ -139,6 +133,61 @@ public class ApiController {
 		secureRandom.nextBytes(token);
 		return Base64.getUrlEncoder().withoutPadding().encodeToString(token); //base64 encoding
 	}
+
+	/**
+	 * Logs out, essentially invalidating an existing token.
+	 */
+	@PostMapping("/{token}/logout")
+	@Transactional
+	public void logout(
+			@PathVariable String token) {
+		log.info(token + "/logout");
+		Token t = resolveTokenOrBail(token);
+		entityManager.remove(t);
+	}
+
+	/**
+	 * Initializes the application, adding 10 instances. Can only be done once
+	 * (when no instances exist), and prints out credentials for an admin for each instance
+	 */
+	@GetMapping("/initialize")
+	@Transactional
+	@ResponseBody
+	public String initialize() {
+		log.info("/initializing");
+		List<Instance> results = entityManager
+				.createQuery("from Instance", Instance.class)
+				.getResultList();
+		if ( ! results.isEmpty()) {
+			throw new ApiException("The application has already been initialized. Go away", null);
+		}
+		StringBuilder sb = new StringBuilder("{\n");
+		for (int i=1; i<= 10; i++) {
+			Instance instance = new Instance();
+			User user = new User();
+			user.setInstance(instance);
+			user.setEnabled((byte)1);
+			user.setUid(generateRandomBase64Token(4));
+			user.setFirstName("Admin_g" + i);
+			user.setLastName("Apellido1 Apellido2");
+			user.setRoles("" + User.Role.ADMIN);
+			user.setTelephones("123-456-789");
+			String pass = generateRandomBase64Token(4);
+			user.setPassword(User.encodePassword(pass));
+			instance.getUsers().add(user);
+			sb.append("\"" + user.getFirstName() + "\": {" +
+					"\"uid\": \"" + user.getUid() + "\"," +
+					"\"password\": \"" + pass + "\"}");
+			entityManager.persist(instance);
+			entityManager.persist(user);
+
+			sb.append(i < 10 ? ",\n": "\n");
+		}
+		sb.append("}");
+		log.info(sb.toString());
+		return sb.toString();
+	}
+
 	/**
 	 * Requests a token from the system. Provides a user to do so, for which only the
 	 * password and uid are looked at
@@ -152,9 +201,7 @@ public class ApiController {
             @RequestBody JsonNode data) throws JsonProcessingException {
         log.info("/login/" + new ObjectMapper().writeValueAsString(data));
 
-        if ( ! data.has("uid") || ! data.has("password")) {
-        	throw new ApiException("Need uid and password to login", null);
-		}
+        requireFields(data, "uid", "password");
         String uid = data.get("uid").asText();
         String pass = data.get("password").asText();
 
@@ -168,9 +215,7 @@ public class ApiController {
 		if (u == null
 				// we do not allow "class" users to log in - they are more of a hack
 				|| u.hasRole(User.Role.CLASS)
-				// NOTE: THIS SHOULD CHECK AN *ENCODED* PASSWORD
-				// PLAINTEXT IS A VERY BAD IDEA (outside this demo code)
-				|| ! u.getPassword().equals(pass)) {
+				|| ! u.passwordMatches(pass)) {
 			throw new ApiAuthException("Invalid uid or password");
 		}
 
@@ -394,7 +439,7 @@ public class ApiController {
 			if ( ! isValidPass(pass)) {
 				throw new ApiException("Invalid or missing password", null);
 			}
-			result.setPassword(pass);
+			result.setPassword(User.encodePassword(pass));
 		}
 
 		result.setInstance(u.getInstance());
@@ -459,7 +504,7 @@ public class ApiController {
 			check(data, "last_name", d->!d.isEmpty(),
 					"cannot be empty", d->v.setLastName(d));
 			check(data, "password", d->isValidPass(d),
-					"invalid", d->v.setPassword(d));
+					"invalid", d->v.setPassword(User.encodePassword(d)));
 			if (data.has("tels")) {
 				ArrayList<String> tels = new ArrayList<>();
 				for (JsonNode n : data.get("tels")) {

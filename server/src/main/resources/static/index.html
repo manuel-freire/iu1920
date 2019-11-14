@@ -204,35 +204,10 @@
   <script src="js/jquery-3.3.1.js"></script>
   <script src="js/bootstrap.bundle-4.3.1.js"></script>
   <script src="js/tinymce.min.js"></script>
+
+  <!-- todos los scripts de interaccion, aqui -->
   <script src="js/gb.js" type="module"></script>
-  <script type="text/javascript">
-    tinymce.init({
-      selector: '#inputTextoAnuncio',
-      plugins: ['link image lists table'],
-      toolbar: 'undo redo | bold italic backcolor | alignleft aligncenter alignjustify | bullist numlist outdent indent | image link table | removeformat',
-      menubar: false,
-    });
-    $("#lista-categorias li").click((e) => {
-      // marca como activo (o, si ya lo era, inactivo) el ítem elegido
-      $(e.currentTarget).toggleClass("active");
-    });
-    $("#button-save-cats").click((e) => {
-      // rellena el #inputCategorias con la nueva lista de categorias, compuesta por todas las ahora-activas
-      $("#inputCategorias").val($("#lista-categorias li.active").toArray().map(o => o.id).join(" "));
-    });
-    $("#form-anuncio").submit((e) => {
-      let o = {
-        titulo: $("#inputTitulo").val(), 
-        cats: $("#inputCategorias").val(),
-        text: tinymce.activeEditor.getContent()
-      };
-      if (form.checkValidity() === true) {
-        console.log("Publicando anuncio, beep bop!", o);
-        // esto evita que se envie de verdad (lo cual, en este caso, sólo recargaría la página)
-        e.preventDefault();
-      }
-    });
-  </script>
+
 </body>
 
 </html>

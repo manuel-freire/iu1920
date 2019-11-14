@@ -8,6 +8,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonSerializer;
 import com.fasterxml.jackson.databind.SerializerProvider;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 
 import javax.persistence.*;
 import java.io.IOException;
@@ -24,6 +25,8 @@ import java.util.List;
  */
 @Entity
 public class User extends Referenceable {
+
+	private static BCryptPasswordEncoder encoder = new BCryptPasswordEncoder();
 
 	public enum Role {
 		ADMIN,
@@ -90,9 +93,18 @@ public class User extends Referenceable {
 	public String getPassword() {
 		return password;
 	}
-	
-	public void setPassword(String password) {
-		this.password = password;
+
+	// call only with encoded passwords - NEVER STORE PLAINTEXT PASSWORDS
+	public void setPassword(String encodedPassword) {
+		this.password = encodedPassword;
+	}
+
+	public boolean passwordMatches(String rawPassword) {
+		return encoder.matches(rawPassword, this.password);
+	}
+
+	public static String encodePassword(String rawPassword) {
+		return encoder.encode(rawPassword);
 	}
 
 	public String getRoles() {

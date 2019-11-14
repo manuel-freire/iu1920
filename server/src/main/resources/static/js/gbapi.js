@@ -1,7 +1,14 @@
 "use strict"
 
-// uses ES6 module notation (export statement is at the very end)
-// see https://medium.freecodecamp.org/anatomy-of-js-module-systems-and-building-libraries-fadcd8dbd0e
+/**
+ * Librería de cliente para interaccionar con el servidor de Garabatos.
+ * Prácticas de IU 2019-20
+ *
+ * Para las prácticas, por favor - NO TOQUES ESTE CÓDIGO.
+ *
+ * Fuera de las prácticas, lee la licencia: dice lo que puedes hacer con él, que es esencialmente
+ * lo que quieras siempre y cuando no digas que lo escribiste tú o me persigas por haberlo escrito mal.
+ */
 
 /**
  * El estado global de la aplicación.
@@ -266,7 +273,7 @@ function getId(id, object) {
     }
 }
 
-// uploads json via GET or POST and expects json in return
+// sube datos en json, espera json de vuelta; lanza error por fallos (status != 200)
 function go(url, method, data = {}) {
   let params = {
     method: method, // POST, GET, POST, PUT, DELETE, etc.
@@ -284,15 +291,15 @@ function go(url, method, data = {}) {
     if (response.ok) {
         return data = response.json();
     } else {
-        response.text().then(t => {throw new Error(t)});
+        response.text().then(t => {throw new Error(t + ", at " + url)});
     }
   })
 }
 
-// updates application state from a JSON response
+// actualiza el estado de la aplicación con el resultado de una petición
 function updateState(data) {
     if (data === undefined) {
-        return; // do not update the globalState with broken data
+        return; // excepto si la petición no devuelve nada
     }
     cache = {};
     globalState = new GlobalState(data.classes, data.students, data.users, data.messages);
@@ -311,12 +318,12 @@ let globalState = new GlobalState();
 let serverApiUrl = "//localhost:8080/api/";
 
 // el token actual (procedente del ultimo login)
-let serverToken = "";
+let serverToken = "no-has-hecho-login";
 
 // llama a esto con la URL de la api a la que te quieres conectar
 function connect(apiUrl) {
     serverApiUrl = apiUrl;
-    serverToken = "";
+    serverToken = "no-has-hecho-login";
 }
 
 // acceso externo a la cache
@@ -327,7 +334,12 @@ function resolve(id) {
 // hace login. Todas las futuras operaciones usan el token devuelto
 function login(uid, pass) {
     return go(serverApiUrl + "login", 'POST', {uid: uid, password: pass})
-        .then(d => {serverToken = d.token; updateState(d); return d;})
+        .then(d => { if (!d) return; serverToken = d.token; updateState(d);});
+}
+
+// hace logout, destruyendo el token usado
+function logout(id) {
+    return go(serverApiUrl + serverToken + "/logout", 'POST');
 }
 
 // añade una nueva clase; alumnos y profes, si se especifican, deben existir
@@ -372,10 +384,16 @@ function list() {
         .then(d => updateState(d));
 }
 
-// lists symbols that will be available outside this module
+// inicializa la aplicación del servidor -- pero sólo cuando está 100% vací
+function initialize() {
+    return go(serverApiUrl + "initialize", 'GET')
+        .then(d => console.log(d));
+}
+
+// cosas que estarán disponibles desde fuera de este módulo
 export {
   
-  // Classes
+  // Clases
   EClass,        // a class; uses cid as id
   Student,       // a student; uses sid as id
   UserRoles,     // possible user roles
@@ -389,8 +407,9 @@ export {
   resolve,       // consulta un id en la cache
   connect,       // establece URL del servidor. Debe llamarse antes de nada
 
-  // Methods. All use the token returned by login, and update globalState
-  login,       // (uid, pass)
+  // Métodos. Todos (menos login / initialize) usan el token que devuelve login
+  login,       // (uid, pass) --> returns valid token for user
+  logout,      // ()          --> deletes a valid token
   addClass,    // (eclass)
   addStudent,  // (student)
   addUser,     // (user)
@@ -399,6 +418,8 @@ export {
   send,        // (message)
   list,        // ()
 
-  // Static utilities
+  initialize,  // ()          --> se puede llamar sólo 1 vez, tras limpiar el servidor
+
+  // Utilidades varias que no forman parte de la API
   Util,
 };
