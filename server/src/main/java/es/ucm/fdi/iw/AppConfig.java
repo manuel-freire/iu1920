@@ -43,5 +43,5 @@ public class AppConfig {
         ResourceBundleMessageSource messageSource = new ResourceBundleMessageSource();
         messageSource.setBasename("Messages");
         return messageSource;
-    }	
+    }
 }

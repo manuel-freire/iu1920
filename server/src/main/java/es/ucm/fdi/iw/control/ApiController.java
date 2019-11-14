@@ -17,6 +17,7 @@ import org.owasp.html.HtmlStreamRenderer;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.util.FileCopyUtils;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
@@ -58,6 +59,14 @@ public class ApiController {
 	@Autowired
 	private LocalData localData;
 
+	@ExceptionHandler(ApiException.class)
+    public ResponseEntity handleException(ApiException e) {
+        // log exception
+        return ResponseEntity
+                .status(HttpStatus.BAD_REQUEST)
+                .body(e.getMessage());
+    }
+
 	@ResponseStatus(value=HttpStatus.BAD_REQUEST, reason="Invalid request")  // 401
 	public static class ApiException extends RuntimeException {
 	     public ApiException(String text, Throwable cause) {
@@ -93,7 +102,7 @@ public class ApiController {
 	/**
 	 * Requires that certain fields exist in a JsonNode, complains otherwise
 	 */
-	private static void requireExists(JsonNode source, String ... fieldNames) {
+	private static void requireFields(JsonNode source, String ... fieldNames) {
 		List<String> missing = new ArrayList<>();
 		for (String fieldName : fieldNames) {
 			if (! source.has(fieldName)) {
@@ -307,6 +316,8 @@ public class ApiController {
 		// create an empty User, and start to copy stuff over
 		User result = new User();
 
+		requireFields(data, "type", "uid", "password", "tels", "first_name", "last_name");
+
 		// the user must specify a valid type
 		String type = data.get("type").asText();
 		User.Role role = null;
@@ -449,8 +460,8 @@ public class ApiController {
 					"cannot be empty", d->v.setLastName(d));
 			check(data, "password", d->isValidPass(d),
 					"invalid", d->v.setPassword(d));
-			ArrayList<String> tels = new ArrayList<>();
 			if (data.has("tels")) {
+				ArrayList<String> tels = new ArrayList<>();
 				for (JsonNode n : data.get("tels")) {
 					String tel = n.asText();
 					if ( ! tel.matches("[0-9]{3}-[0-9]{3}-[0-9]{3}")) {
@@ -460,10 +471,10 @@ public class ApiController {
 						tels.add(tel);
 					}
 				}
-			}
-			v.setTelephones(Strings.join(tels, ','));
-			if (tels.isEmpty()) {
-				throw new ApiException("Expected at least 1 telephone number", null);
+				v.setTelephones(Strings.join(tels, ','));
+				if (tels.isEmpty()) {
+					throw new ApiException("Expected at least 1 telephone number", null);
+				}
 			}
 
 			// the user may specify existing class ids. This is only useful for teachers
@@ -606,6 +617,13 @@ public class ApiController {
 		return new GlobalState(t);
 	}
 
+	@PostMapping("/{token}/list")
+	@Transactional
+	public GlobalState list(@PathVariable String token) throws JsonProcessingException {
+		log.info(token + "/list");
+		Token t = resolveTokenOrBail(token);
+		return new GlobalState(t);
+	}
 
 	@PostMapping("/{token}/rm/{oid}")
 	@Transactional
@@ -837,66 +855,5 @@ public class ApiController {
 		entityManager.persist(m);
 		entityManager.flush(); // so returned state includes new message
 		return new GlobalState(t);
-	}
-
-	@PostMapping("/{token}/file/{fileId}")
-	public @ResponseBody String uploadFile(
-			@PathVariable long token,
-			@RequestParam MultipartFile file,
-			@PathVariable String fileId,
-			HttpServletResponse response) throws IOException {
-
-		log.info(token + "/file (POST), " + fileId);
-
-		String error = "";
-        if (file.isEmpty() || fileId.isEmpty()) {
-            error = "You failed to upload a file for "
-                    + token + "/" + fileId + " because the file or its id was empty.";
-        } else if (file.getBytes().length > 100000) {
-			error = "Only files <= 100k can be uploaded"
-					+ token + "/" + fileId + ": size is " + file.getBytes().length;
-		} else {
-			File f = localData.getFile("user/" + token,
-					fileId.replaceAll("/", "_"));
-			try (BufferedOutputStream stream =
-						 new BufferedOutputStream(
-								 new FileOutputStream(f))) {
-				stream.write(file.getBytes());
-				return "Uploaded " + token + "/" + fileId +
-						" into " + f.getAbsolutePath() + "!";
-			} catch (Exception e) {
-				error = "Upload failed " + token + "/" + fileId +
-						" => " + e.getMessage();
-			}
-		}
-		// exit with error, blame user
-		response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
-		return error;
-	}
-
-	/**
-	 * @param fileId to retrieve
-	 * @return the file, or an 'unknown-user' image
-	 */
-	@RequestMapping(value="/{token}/file/{fileId}",
-			method = RequestMethod.GET,
-			produces = MediaType.TEXT_PLAIN_VALUE)
-	public void getFile(@PathVariable long apiKey,
-						@PathVariable String fileId,
-						HttpServletResponse response) {
-
-		log.info(apiKey + "/file (GET), " + fileId);
-
-		File f = localData.getFile("user/" + apiKey,
-				fileId.replaceAll("/", "_"));
-		try (InputStream in = f.exists() ?
-				new BufferedInputStream(new FileInputStream(f)) :
-				new BufferedInputStream(this.getClass().getClassLoader()
-						.getResourceAsStream("unknown-user.jpg"))) {
-			FileCopyUtils.copy(in, response.getOutputStream());
-		} catch (IOException ioe) {
-			response.setStatus(HttpServletResponse.SC_NOT_FOUND); // 404
-			log.info("Error retrieving file: " + f + " -- " + ioe.getMessage());
-		}
 	}
 }
