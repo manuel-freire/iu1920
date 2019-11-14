@@ -121,8 +121,8 @@ $(function() {
   }
 
 
-  // servidor por defecto. También puedes lanzar tú el tuyo en local
-  Gb.connect("http://localhost:8080/api/");
+  // Servidor a utilizar. También puedes lanzar tú el tuyo en local (instrucciones en Github)
+  Gb.connect("http://gin.fdi.ucm.es:8080/api/");
 
   // ejemplo de login
   Gb.login("16337065G", "ZX05e").then(d => console.log("login ok!", d));
