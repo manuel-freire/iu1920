@@ -122,10 +122,17 @@ $(function() {
 
 
   // Servidor a utilizar. También puedes lanzar tú el tuyo en local (instrucciones en Github)
-  Gb.connect("http://gin.fdi.ucm.es:8080/api/");
+  Gb.connect("http://localhost:8080/api/");
 
   // ejemplo de login
-  Gb.login("16337065G", "ZX05e").then(d => console.log("login ok!", d));
+  Gb.login("HDY0IQ", "cMbwKQ").then(d => {
+    if (d !== undefined) {
+        const u = Gb.resolve("HDY0IQ");
+        console.log("login ok!", u);
+    } else {
+        console.log("error en login");
+    }
+  });
 
   // ejemplo de crear una clase, una vez logeados
   Gb.addClass({cid: "1A"})
@@ -141,6 +148,14 @@ $(function() {
     "classes": [
         "1A"
     ]});
+
+    Gb.send({
+        msgid: 123,
+        from: "18950946G",
+        to: [ "18950946G" ],
+        title: "test",
+        body: "lots of html"
+    });
 });
 
 // cosas que exponemos para usarlas desde la consola

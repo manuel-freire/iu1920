@@ -334,7 +334,7 @@ function resolve(id) {
 // hace login. Todas las futuras operaciones usan el token devuelto
 function login(uid, pass) {
     return go(serverApiUrl + "login", 'POST', {uid: uid, password: pass})
-        .then(d => { if (!d) return; serverToken = d.token; updateState(d);});
+        .then(d => { if (!d) return; serverToken = d.token; updateState(d); return d;});
 }
 
 // hace logout, destruyendo el token usado
