@@ -19,11 +19,12 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.util.HtmlUtils;
+import org.springframework.core.env.Environment;
 
 import javax.persistence.EntityManager;
 import javax.transaction.Transactional;
 import java.security.SecureRandom;
-import java.time.Instant;
+import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.function.Consumer;
@@ -44,7 +45,10 @@ public class ApiController {
 	
 	@Autowired 
 	private EntityManager entityManager;
-	
+
+	@Autowired
+	private Environment env;
+
 	@Autowired
 	private IwSocketHandler iwSocketHandler;
 	
@@ -181,6 +185,20 @@ public class ApiController {
 			entityManager.persist(instance);
 			entityManager.persist(user);
 
+			// used only if debug = true- quick entry with token 1234
+			if (i==9) {
+				String debugProperty = env.getProperty("es.ucm.fdi.debug");
+				if ("true".equals(debugProperty)) {
+					Token t = new Token();
+					t.setUser(user);
+					t.setKey("1234");
+					entityManager.persist(t);
+					log.info("Debug-property set, using 1234 as admin-login token for group 9");
+				} else {
+					log.info("Debug-property is {}: no testing token available", debugProperty);
+				}
+			}
+
 			sb.append(i < 10 ? ",\n": "\n");
 		}
 		sb.append("}");
@@ -237,7 +255,14 @@ public class ApiController {
 		if ( ! u.hasRole(User.Role.ADMIN)) {
 			throw new ApiException("Only admins can add classes", null);
 		}
-		EClass ec = new EClass();
+
+		requireFields(data, "cid");
+		EClass ec = resolve(u.getInstance().getClasses(), data.get("cid").asText());
+		if (ec != null) {
+			throw new ApiException("Duplicate class ref " + data.get("cid"), null);
+		}
+
+		ec = new EClass();
 		ec.setCid(data.get("cid").asText());
 		ec.setInstance(u.getInstance());
 		entityManager.persist(ec);
@@ -270,6 +295,9 @@ public class ApiController {
 		if ( ! u.hasRole(User.Role.ADMIN)) {
 			throw new ApiException("Only admins can add students", null);
 		}
+
+		requireFields(data, "sid", "cid", "first_name", "last_name");
+
 		// create an empty Student, and start to copy stuff over
 		Student result = new Student();
 
@@ -291,13 +319,8 @@ public class ApiController {
 			}
 		}
 		// the student must specify first and last names
-		String first = data.get("first_name").asText();
-		String last = data.get("last_name").asText();
-		if (first.isEmpty() || last.isEmpty()) {
-			throw new ApiException("Missing first or last names", null);
-		}
-		result.setFirstName(first);
-		result.setLastName(last);
+		result.setFirstName(data.get("first_name").asText());
+		result.setLastName(data.get("last_name").asText());
 		// and a unique student id
 		String sid = data.get("sid").asText();
 		if (resolve(u.getInstance().getStudents(), sid) != null) {
@@ -790,6 +813,9 @@ public class ApiController {
 		// create an empty Message, and start to copy stuff over
 		Message m = new Message();
 
+		// check important inputs are there: from, id, contents, ...
+		requireFields(data, "msgid", "from", "title", "body");
+
 		// The Id must be unique
 		String mid = data.get("msgid").asText();
 		if (resolve(u.getInstance().getUsers(), mid) != null) {
@@ -801,14 +827,14 @@ public class ApiController {
 		DateTimeFormatter dtf = DateTimeFormatter.ISO_DATE_TIME;
 		if (data.has("date")) {
 			String date = data.get("date").asText();
-			Instant d = Instant.from(dtf.parse(date));
-			if (d.isAfter(Instant.now()) || ! u.hasRole(User.Role.ADMIN)) {
+			LocalDateTime d = LocalDateTime.from(dtf.parse(date));
+			if (d.isAfter(LocalDateTime.now()) || ! u.hasRole(User.Role.ADMIN)) {
 				throw new ApiException("If date is specified, it must be a valid ISO date; and only admins use them", null);
 			}
 			m.setDate(date);
 		} else {
 			// not specified - we will set it ourselves to "now"
-			m.setDate(dtf.format(Instant.now()));
+			m.setDate(dtf.format(LocalDateTime.now()));
 		}
 
 		if (data.has("parent")) {
@@ -816,6 +842,8 @@ public class ApiController {
 			m.setParent(parent);
 			m.getTo().add(parent.getFrom());
 		} else {
+			requireFields(data, "to");
+
 			// One or more targets must be identified -- unless is reply
 			for (JsonNode n : data.get("to")) {
 				User o = resolve(u.getInstance().getUsers(), n.asText());
