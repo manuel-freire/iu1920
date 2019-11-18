@@ -209,6 +209,7 @@ public class User extends Referenceable {
 	}
 
 	@Transient
+	@JsonView(Views.Public.class)
 	public String getType() {
 		return roles.toLowerCase();
 	}
