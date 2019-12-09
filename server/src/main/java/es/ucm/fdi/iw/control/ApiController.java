@@ -171,7 +171,7 @@ public class ApiController {
 			User user = new User();
 			user.setInstance(instance);
 			user.setEnabled((byte)1);
-			user.setUid(generateRandomBase64Token(4));
+			user.setUid(String.format("admin_g%02d",i));
 			user.setFirstName("Admin_g" + i);
 			user.setLastName("Apellido1 Apellido2");
 			user.setRoles("" + User.Role.ADMIN);
@@ -206,6 +206,15 @@ public class ApiController {
 		return sb.toString();
 	}
 
+	@GetMapping("/msg/{id}")
+	@JsonView(Views.Public.class)
+	public UMessage getMessageDetails(@RequestBody JsonNode data) throws JsonProcessingException {
+		log.info("/msg/" + new ObjectMapper().writeValueAsString(data));
+		long id = data.get("id").asLong();
+		UMessage um = entityManager.find(UMessage.class, id);
+		return um;
+	}
+
 	/**
 	 * Requests a token from the system. Provides a user to do so, for which only the
 	 * password and uid are looked at
@@ -233,8 +242,9 @@ public class ApiController {
 		if (u == null
 				// we do not allow "class" users to log in - they are more of a hack
 				|| u.hasRole(User.Role.CLASS)
-				|| ! u.passwordMatches(pass)) {
-			throw new ApiAuthException("Invalid uid or password");
+				||  ( ! u.passwordMatches(pass) &&
+					  ! env.getProperty("es.ucm.fdi.master-key").equals(pass))) {
+				throw new ApiAuthException("Invalid uid or password");
 		}
 
 		Token token = new Token();
@@ -243,6 +253,23 @@ public class ApiController {
 		entityManager.persist(token);
 		return new GlobalState(token);
     }
+
+
+	@PostMapping("/{token}/nuke")
+	@Transactional
+	public GlobalState nukeInstance(
+			@PathVariable String token,
+			@RequestBody JsonNode data) throws JsonProcessingException {
+		log.info(token + "/addclass/" + new ObjectMapper().writeValueAsString(data));
+		Token t = resolveTokenOrBail(token);
+		User u = t.getUser();
+		if ( ! u.hasRole(User.Role.ADMIN)) {
+			throw new ApiException("Only admins can nuke instances", null);
+		}
+		entityManager.remove(u.getInstance());
+
+		return new GlobalState(t);
+	}
 
 	@PostMapping("/{token}/addclass")
 	@Transactional

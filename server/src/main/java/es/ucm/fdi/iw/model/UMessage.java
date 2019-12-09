@@ -57,6 +57,7 @@ public class UMessage {
 	}
 
 	@JsonSerialize(using = Referenceable.StringToListSerializer.class)
+	@JsonView(Views.Public.class)
 	public String getLabels() {
 		return labels;
 	}
@@ -66,33 +67,39 @@ public class UMessage {
 	}
 
 	@Transient
+	@JsonView(Views.Public.class)
 	public String getMsgid() {
 		return message.getMid();
 	}
 
 	@Transient
+	@JsonView(Views.Public.class)
 	public String getDate() {
 		return message.getDate();
 	}
 
 	@Transient
 	@JsonSerialize(using = Referenceable.RefSerializer.class)
+	@JsonView(Views.Public.class)
 	public User getFrom() {
 		return message.getFrom();
 	}
 
 	@Transient
 	@JsonSerialize(using = Referenceable.ListSerializer.class)
+	@JsonView(Views.Public.class)
 	public List<User> getTo() {
 		return message.getTo();
 	}
 
 	@Transient
+	@JsonView(Views.Public.class)
 	public String getBody() {
 		return message.getBody();
 	}
 
 	@Transient
+	@JsonView(Views.Public.class)
 	public String getSubject() {
 		return message.getSubject();
 	}
